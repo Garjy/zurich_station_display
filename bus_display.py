@@ -23,7 +23,7 @@ class BusDisplayApp:
 
         # Configure fullscreen
         self.root.attributes('-fullscreen', True)
-        self.root.configure(bg='#2B5DA0')
+        self.root.configure(bg='#2B5DA0', cursor='none')
 
         # Zurich line colors (line number: (bg_color, fg_color))
         self.line_colors = {
@@ -343,8 +343,13 @@ class BusDisplayApp:
             # Calculate minutes until departure
             now = datetime.now(dt.tzinfo)
             minutes = int((dt - now).total_seconds() / 60)
-            if minutes <= 0:
-                time_display = "in 0'"
+
+            # Skip buses that have already departed
+            if minutes < 0:
+                return
+
+            if minutes == 0:
+                time_display = "Now"
             else:
                 time_display = f"in {minutes}'"
         else:
@@ -353,6 +358,10 @@ class BusDisplayApp:
         # Get bus information
         line = bus.get('number', 'N/A')
         destination = bus['to']
+
+        # Remove "Zurich"/"Zürich" and any following non-letter characters (spaces, commas, etc.)
+        destination = re.sub(r'^Z[üu]rich[^a-zA-ZÀ-ÿ]*', '', destination)
+
         category = bus.get('category', '')
 
         # Determine transport icon based on category

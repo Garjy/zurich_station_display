@@ -1,0 +1,23 @@
+[Unit]
+Description=Zurich Bus Display for Raspberry Pi
+After=network-online.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+ExecStart=/usr/bin/python3 /home/pi/zurich_bus_display/bus_display.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target
+
+[Raspi]
+sudo cp bus-display.service /etc/systemd/system/
+sudo systemctl enable bus-display.service
+sudo systemctl start bus-display.service
+
+

@@ -5,7 +5,6 @@ Displays real-time bus information for Mannessplatz stop in fullscreen mode
 """
 
 import tkinter as tk
-from tkinter import ttk
 import requests
 from datetime import datetime
 import threading
@@ -21,7 +20,7 @@ class BusDisplayApp:
 
         # Configure fullscreen
         self.root.attributes('-fullscreen', True)
-        self.root.configure(bg='#1a1a1a')
+        self.root.configure(bg='#2B5DA0')
 
         # Allow ESC key to exit fullscreen (useful for testing)
         self.root.bind('<Escape>', lambda e: self.root.attributes('-fullscreen', False))
@@ -84,81 +83,86 @@ class BusDisplayApp:
 
     def create_widgets(self):
         """Create the UI components"""
-        # Title
-        title_frame = tk.Frame(self.root, bg='#2d2d2d')
-        title_frame.pack(fill=tk.X, pady=5)
+        # Header with time and ZVV logo
+        header_frame = tk.Frame(self.root, bg='#C8D7E5', height=60)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
 
-        title_label = tk.Label(
-            title_frame,
-            text=f"🚌 {self.station_name}",
-            font=('Arial', 16, 'bold'),
-            bg='#2d2d2d',
-            fg='#ffffff'
-        )
-        title_label.pack(pady=5)
-
-        # Current time
+        # Time and date on the left side of header
         self.time_label = tk.Label(
-            title_frame,
+            header_frame,
             text="",
-            font=('Arial', 10),
-            bg='#2d2d2d',
-            fg='#cccccc'
+            font=('Arial', 24, 'bold'),
+            bg='#C8D7E5',
+            fg='#2d3e50',
+            anchor='w'
         )
-        self.time_label.pack()
+        self.time_label.pack(side=tk.LEFT, padx=20, pady=10)
 
-        # Separator
-        separator = tk.Frame(self.root, height=2, bg='#444444')
-        separator.pack(fill=tk.X, padx=10)
+        # ZVV logo placeholder on the right
+        zvv_label = tk.Label(
+            header_frame,
+            text="ZVV",
+            font=('Arial', 20, 'bold'),
+            bg='#C8D7E5',
+            fg='#2d3e50',
+            anchor='e'
+        )
+        zvv_label.pack(side=tk.RIGHT, padx=20, pady=10)
 
-        # Header row
-        header_frame = tk.Frame(self.root, bg='#1a1a1a')
-        header_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Column headers
+        column_header_frame = tk.Frame(self.root, bg='#2B4F7C')
+        column_header_frame.pack(fill=tk.X, pady=(0, 2))
 
         headers = [
-            ("Time", 0.2),
-            ("Line", 0.15),
-            ("Destination", 0.5),
-            ("Platform", 0.15)
+            ("Linie\nLine", 0.15),
+            ("Richtung\nDirection", 0.65),
+            ("Abfahrt\nDeparture", 0.2)
         ]
 
         for text, width in headers:
             label = tk.Label(
-                header_frame,
+                column_header_frame,
                 text=text,
-                font=('Arial', 10, 'bold'),
-                bg='#1a1a1a',
-                fg='#888888',
-                anchor='w'
+                font=('Arial', 11, 'bold'),
+                bg='#2B4F7C',
+                fg='#ffffff',
+                anchor='w',
+                justify=tk.LEFT
             )
-            label.pack(side=tk.LEFT, fill=tk.X, expand=True,
-                      padx=2, ipadx=int(width * 100))
+            label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=8,
+                      ipadx=int(width * 50))
 
-        # Scrollable frame for bus list
-        self.canvas = tk.Canvas(self.root, bg='#1a1a1a', highlightthickness=0)
-        self.scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas, bg='#1a1a1a')
+        # Bus list frame (no scrollbar)
+        self.scrollable_frame = tk.Frame(self.root, bg='#2B5DA0')
+        self.scrollable_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        )
+        # Footer with touch screen message
+        footer_frame = tk.Frame(self.root, bg='#2B4F7C', height=35)
+        footer_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        footer_frame.pack_propagate(False)
 
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-        self.canvas.pack(side="left", fill="both", expand=True, padx=10)
-        self.scrollbar.pack(side="right", fill="y")
-
-        # Status bar
-        self.status_label = tk.Label(
-            self.root,
-            text="Loading...",
+        footer_left = tk.Label(
+            footer_frame,
+            text="Bitte Bildschirm berühren\nTouchez l'écran s'il vous plaît",
             font=('Arial', 8),
-            bg='#2d2d2d',
-            fg='#888888'
+            bg='#2B4F7C',
+            fg='#ffffff',
+            anchor='w',
+            justify=tk.LEFT
         )
-        self.status_label.pack(side=tk.BOTTOM, fill=tk.X, pady=2)
+        footer_left.pack(side=tk.LEFT, padx=15, pady=3)
+
+        footer_right = tk.Label(
+            footer_frame,
+            text="Tocca lo schermo, per favore\nPlease touch the screen",
+            font=('Arial', 8),
+            bg='#2B4F7C',
+            fg='#ffffff',
+            anchor='e',
+            justify=tk.RIGHT
+        )
+        footer_right.pack(side=tk.RIGHT, padx=15, pady=3)
 
     def fetch_data(self):
         """Fetch bus data from API in a separate thread"""
@@ -201,9 +205,10 @@ class BusDisplayApp:
 
     def update_display(self, data):
         """Update the display with new bus data"""
-        # Update current time
-        current_time = datetime.now().strftime("%H:%M:%S")
-        self.time_label.config(text=current_time)
+        # Update current time and date
+        now = datetime.now()
+        time_date_str = now.strftime("%H:%M     %d.%m.%Y")
+        self.time_label.config(text=time_date_str)
 
         # Clear existing bus entries
         for widget in self.scrollable_frame.winfo_children():
@@ -215,8 +220,8 @@ class BusDisplayApp:
                 self.scrollable_frame,
                 text=f"Station '{self.station_name}' not found!",
                 font=('Arial', 14, 'bold'),
-                bg='#1a1a1a',
-                fg='#ff5555'
+                bg='#2B5DA0',
+                fg='#ffffff'
             )
             error_label.pack(pady=20)
 
@@ -224,12 +229,10 @@ class BusDisplayApp:
                 self.scrollable_frame,
                 text="Use find_station.py to search for the correct station name",
                 font=('Arial', 10),
-                bg='#1a1a1a',
-                fg='#888888'
+                bg='#2B5DA0',
+                fg='#ffffff'
             )
             help_label.pack(pady=10)
-
-            self.status_label.config(text=f"Station not found: {self.station_name}", fg='#ff5555')
             return
 
         # Check if we have data
@@ -238,23 +241,15 @@ class BusDisplayApp:
                 self.scrollable_frame,
                 text="No buses scheduled",
                 font=('Arial', 12),
-                bg='#1a1a1a',
-                fg='#888888'
+                bg='#2B5DA0',
+                fg='#ffffff'
             )
             no_data_label.pack(pady=20)
-            self.status_label.config(text=f"Last updated: {current_time} - No data", fg='#888888')
             return
 
         # Display bus entries
         for i, bus in enumerate(data['stationboard']):
             self.create_bus_entry(bus, i)
-
-        # Update status
-        bus_count = len(data['stationboard'])
-        self.status_label.config(
-            text=f"Last updated: {current_time} - Showing {bus_count} buses",
-            fg='#888888'
-        )
 
     def create_bus_entry(self, bus, index):
         """Create a single bus entry row"""
@@ -262,91 +257,87 @@ class BusDisplayApp:
         departure_time = bus['stop']['departure']
         if departure_time:
             dt = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
-            time_str = dt.strftime("%H:%M")
 
             # Calculate minutes until departure
             now = datetime.now(dt.tzinfo)
             minutes = int((dt - now).total_seconds() / 60)
-            if minutes < 0:
-                time_display = time_str
-            elif minutes == 0:
-                time_display = "Now"
+            if minutes <= 0:
+                time_display = "in 0'"
             else:
-                time_display = f"{time_str} ({minutes}m)"
+                time_display = f"in {minutes}'"
         else:
             time_display = "N/A"
 
         # Get bus information
         line = bus.get('number', 'N/A')
         destination = bus['to']
-        platform = bus['stop'].get('platform', '-')
 
-        # Create row frame
-        bg_color = '#252525' if index % 2 == 0 else '#1a1a1a'
-        row_frame = tk.Frame(self.scrollable_frame, bg=bg_color)
-        row_frame.pack(fill=tk.X, pady=2)
+        # Create row frame with blue background
+        row_frame = tk.Frame(self.scrollable_frame, bg='#2B5DA0')
+        row_frame.pack(fill=tk.X, pady=1, padx=10)
 
-        # Time
-        time_label = tk.Label(
-            row_frame,
-            text=time_display,
-            font=('Arial', 11, 'bold'),
-            bg=bg_color,
-            fg='#4CAF50',
-            anchor='w',
-            width=12
-        )
-        time_label.pack(side=tk.LEFT, padx=5)
+        # Line number with gray box
+        line_frame = tk.Frame(row_frame, bg='#7C7C7C', width=60)
+        line_frame.pack(side=tk.LEFT, padx=(5, 10), pady=8)
+        line_frame.pack_propagate(False)
 
-        # Line number
         line_label = tk.Label(
-            row_frame,
+            line_frame,
             text=line,
-            font=('Arial', 11, 'bold'),
-            bg=bg_color,
-            fg='#2196F3',
-            anchor='center',
-            width=8
+            font=('Arial', 14, 'bold'),
+            bg='#7C7C7C',
+            fg='#000000',
+            anchor='center'
         )
-        line_label.pack(side=tk.LEFT, padx=5)
+        line_label.pack(expand=True, fill=tk.BOTH)
+
+        # Accessibility icon (wheelchair symbol)
+        accessibility_label = tk.Label(
+            row_frame,
+            text="♿",
+            font=('Arial', 12),
+            bg='#2B5DA0',
+            fg='#ffffff',
+            anchor='center',
+            width=2
+        )
+        accessibility_label.pack(side=tk.LEFT, padx=(0, 10))
 
         # Destination
         dest_label = tk.Label(
             row_frame,
             text=destination,
-            font=('Arial', 10),
-            bg=bg_color,
+            font=('Arial', 14),
+            bg='#2B5DA0',
             fg='#ffffff',
             anchor='w'
         )
         dest_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
-        # Platform
-        platform_label = tk.Label(
+        # Departure time
+        time_label = tk.Label(
             row_frame,
-            text=platform,
-            font=('Arial', 10),
-            bg=bg_color,
-            fg='#FFA726',
-            anchor='center',
-            width=8
+            text=time_display,
+            font=('Arial', 14, 'bold'),
+            bg='#2B5DA0',
+            fg='#ffffff',
+            anchor='e',
+            width=10
         )
-        platform_label.pack(side=tk.LEFT, padx=5)
+        time_label.pack(side=tk.RIGHT, padx=10)
 
     def show_error(self, error_msg):
         """Display error message"""
-        self.status_label.config(text=error_msg, fg='#ff5555')
-
         # Clear existing entries
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
         error_label = tk.Label(
             self.scrollable_frame,
-            text=f"⚠️ {error_msg}",
-            font=('Arial', 11),
-            bg='#1a1a1a',
-            fg='#ff5555'
+            text=f"{error_msg}",
+            font=('Arial', 14),
+            bg='#2B5DA0',
+            fg='#ffffff'
         )
         error_label.pack(pady=20)
 

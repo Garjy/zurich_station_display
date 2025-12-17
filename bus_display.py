@@ -11,6 +11,9 @@ import threading
 import time
 import configparser
 import os
+from PIL import Image, ImageTk
+import io
+import re
 
 
 class BusDisplayApp:
@@ -22,9 +25,49 @@ class BusDisplayApp:
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg='#2B5DA0')
 
+        # Zurich line colors (line number: (bg_color, fg_color))
+        self.line_colors = {
+            # Buses
+            '31': ('#E30613', '#FFFFFF'),  # Red
+            '32': ('#E30613', '#FFFFFF'),  # Red
+            '33': ('#E30613', '#FFFFFF'),  # Red
+            '34': ('#E30613', '#FFFFFF'),  # Red
+            '61': ('#956B27', '#FFFFFF'),  # Brown
+            '62': ('#956B27', '#FFFFFF'),  # Brown
+            '64': ('#956B27', '#FFFFFF'),  # Brown
+            '69': ('#956B27', '#FFFFFF'),  # Brown
+            '72': ('#808080', '#FFFFFF'),  # Gray
+            '73': ('#808080', '#FFFFFF'),  # Gray
+            '75': ('#808080', '#FFFFFF'),  # Gray
+            '76': ('#FFFFFF', '#000000'),  # White background, black text
+            '77': ('#FFFFFF', '#000000'),  # White background, black text
+            '80': ('#00A651', '#FFFFFF'),  # Green
+            '83': ('#00A651', '#FFFFFF'),  # Green
+            # Trams
+            '2': ('#E30613', '#FFFFFF'),   # Red
+            '3': ('#00A651', '#FFFFFF'),   # Green
+            '4': ('#0066B3', '#FFFFFF'),   # Blue
+            '5': ('#956B27', '#FFFFFF'),   # Brown
+            '6': ('#956B27', '#FFFFFF'),   # Brown
+            '7': ('#000000', '#FFFFFF'),   # Black
+            '8': ('#00A651', '#FFFFFF'),   # Green
+            '9': ('#0066B3', '#FFFFFF'),   # Blue
+            '10': ('#E30095', '#FFFFFF'),  # Pink
+            '11': ('#00A651', '#FFFFFF'),  # Green
+            '12': ('#00A651', '#FFFFFF'),  # Green
+            '13': ('#FDD204', '#000000'),  # Yellow
+            '14': ('#0066B3', '#FFFFFF'),  # Blue
+            '15': ('#E30613', '#FFFFFF'),  # Red
+            '17': ('#808080', '#FFFFFF'),  # Gray
+        }
+
         # Allow ESC key to exit fullscreen (useful for testing)
         self.root.bind('<Escape>', lambda e: self.root.attributes('-fullscreen', False))
         self.root.bind('<F11>', lambda e: self.root.attributes('-fullscreen', True))
+
+        # Load transport icons
+        self.transport_icons = {}
+        self.load_icons()
 
         # Load configuration
         self.load_config()
@@ -38,6 +81,45 @@ class BusDisplayApp:
         # Start data fetching
         self.running = True
         self.fetch_data()
+
+    def load_icons(self):
+        """Load and prepare transport icons from SVG files"""
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        icons_dir = os.path.join(script_dir, 'icons')
+
+        icon_files = {
+            'bus': 'bus-profile-small.svg',
+            'tram': 'tram-profile-small.svg',
+            'train': 'train-profile-small.svg'
+        }
+
+        for icon_name, filename in icon_files.items():
+            icon_path = os.path.join(icons_dir, filename)
+            try:
+                if os.path.exists(icon_path):
+                    # Read SVG content
+                    with open(icon_path, 'r') as f:
+                        svg_content = f.read()
+
+                    # Convert black fill to white for display on blue background
+                    svg_content = svg_content.replace('fill="#000"', 'fill="#FFFFFF"')
+
+                    # Try to render SVG using cairosvg if available
+                    try:
+                        import cairosvg
+                        png_data = cairosvg.svg2png(bytestring=svg_content.encode('utf-8'),
+                                                     output_width=24, output_height=24)
+                        image = Image.open(io.BytesIO(png_data))
+                        self.transport_icons[icon_name] = ImageTk.PhotoImage(image)
+                    except ImportError:
+                        # Fallback: use text icons if cairosvg is not available
+                        print(f"Warning: cairosvg not installed, using text icons as fallback")
+                        self.transport_icons = None
+                        return
+            except Exception as e:
+                print(f"Error loading icon {icon_name}: {e}")
+                self.transport_icons = None
+                return
 
     def load_config(self):
         """Load configuration from config.ini file"""
@@ -271,44 +353,74 @@ class BusDisplayApp:
         # Get bus information
         line = bus.get('number', 'N/A')
         destination = bus['to']
+        category = bus.get('category', '')
 
-        # Create row frame with blue background
-        row_frame = tk.Frame(self.scrollable_frame, bg='#2B5DA0')
+        # Determine transport icon based on category
+        icon_mapping = {
+            'B': 'bus',
+            'BUS': 'bus',
+            'T': 'tram',
+            'TRAM': 'tram',
+            'S': 'train',
+            'IC': 'train',
+            'IR': 'train',
+            'RE': 'train',
+            'EC': 'train',
+        }
+
+        # Get the appropriate icon type (default to bus)
+        icon_type = icon_mapping.get(category, 'bus')
+
+        # Get line colors from predefined mapping
+        if line in self.line_colors:
+            line_bg_color, line_fg_color = self.line_colors[line]
+        else:
+            # Default colors for unknown lines
+            line_bg_color = '#7C7C7C'  # Gray
+            line_fg_color = '#FF8C00'  # Orange text
+
+        # Alternating blue tints for each row
+        row_colors = ['#3366AA', '#2B5DA0']  # Lighter and darker blue
+        row_bg = row_colors[index % 2]
+
+        # Create row frame with alternating blue background
+        row_frame = tk.Frame(self.scrollable_frame, bg=row_bg)
         row_frame.pack(fill=tk.X, pady=1, padx=10)
 
-        # Line number with gray box
-        line_frame = tk.Frame(row_frame, bg='#7C7C7C', width=60)
+        # Transport icon (bus/tram/train)
+        if self.transport_icons and icon_type in self.transport_icons:
+            # Use image icon
+            icon_label = tk.Label(
+                row_frame,
+                image=self.transport_icons[icon_type],
+                bg=row_bg,
+                anchor='center',
+                width=30
+            )
+            icon_label.pack(side=tk.LEFT, padx=(5, 5))
+
+        # Line number with line-specific color
+        line_frame = tk.Frame(row_frame, bg=line_bg_color, width=60, height=35)
         line_frame.pack(side=tk.LEFT, padx=(5, 10), pady=8)
         line_frame.pack_propagate(False)
 
         line_label = tk.Label(
             line_frame,
             text=line,
-            font=('Arial', 14, 'bold'),
-            bg='#7C7C7C',
-            fg='#000000',
-            anchor='center'
-        )
-        line_label.pack(expand=True, fill=tk.BOTH)
-
-        # Accessibility icon (wheelchair symbol)
-        accessibility_label = tk.Label(
-            row_frame,
-            text="♿",
-            font=('Arial', 12),
-            bg='#2B5DA0',
-            fg='#ffffff',
+            font=('Arial', 16, 'bold'),
+            bg=line_bg_color,
+            fg=line_fg_color,
             anchor='center',
-            width=2
+            justify=tk.CENTER
         )
-        accessibility_label.pack(side=tk.LEFT, padx=(0, 10))
+        line_label.place(relx=0.5, rely=0.5, anchor='center')
 
         # Destination
         dest_label = tk.Label(
             row_frame,
             text=destination,
             font=('Arial', 14),
-            bg='#2B5DA0',
+            bg=row_bg,
             fg='#ffffff',
             anchor='w'
         )
@@ -319,7 +431,7 @@ class BusDisplayApp:
             row_frame,
             text=time_display,
             font=('Arial', 14, 'bold'),
-            bg='#2B5DA0',
+            bg=row_bg,
             fg='#ffffff',
             anchor='e',
             width=10

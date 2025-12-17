@@ -1,10 +1,10 @@
 # Zurich Bus Display for Raspberry Pi
 
-A fullscreen desktop application that displays real-time bus information for Mannessplatz stop in Zurich, Switzerland.
+A fullscreen desktop application that displays real-time bus information for any selected bus/tram stop in Zurich, Switzerland.
 
 ## Features
 
-- Real-time bus departure times from Mannessplatz station
+- Real-time bus departure times from configured station
 - Automatically refreshes every 30 seconds
 - Fullscreen display optimized for 3.5-inch touchscreen
 - Shows departure time, bus line number, destination, and platform
@@ -45,7 +45,7 @@ Before running the application, you need to find the correct station name.
 
 ### Find Your Station
 
-The default station "Mannessplatz" may not exist. Use the station finder tool:
+The default station "Paradplatz" may not exist. Use the station finder tool:
 
 ```bash
 python3 find_station.py "your station name"
@@ -177,6 +177,28 @@ max_buses = 30
 
 The application automatically adapts to your screen size. For better visibility on small screens, you can adjust font sizes in the `bus_display.py` file in the `create_widgets` method.
 
+### Create custom service to run at startup sudo nano 
+/etc/systemd/system/zurich-station-display.service 
+
+Paste this (edit  User= and the script path as needed):
+```ini
+[Unit]
+Description=Zurich station display
+After=network-online.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/python3 /home/pi/zurich_station_display/bus_display.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ## Troubleshooting
 
 ### Display Issues
@@ -202,7 +224,7 @@ If you see "Error" messages:
 2. Verify the station name is correct
 3. Test the API manually:
 ```bash
-curl "http://transport.opendata.ch/v1/stationboard?station=Mannessplatz&transportations[]=bus&limit=5"
+curl "http://transport.opendata.ch/v1/stationboard?station=Paradeplatz&transportations[]=bus&limit=5"
 ```
 
 ### No Buses Showing

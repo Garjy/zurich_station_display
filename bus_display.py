@@ -248,8 +248,8 @@ class BusDisplayApp:
 
     def create_widgets(self):
         """Create the UI components"""
-        # Header with time and ZVV logo
-        header_frame = tk.Frame(self.root, bg='#C8D7E5', height=45)
+        # Header with time and weather
+        header_frame = tk.Frame(self.root, bg='#C8D7E5', height=60)
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
 
@@ -257,45 +257,45 @@ class BusDisplayApp:
         self.time_label = tk.Label(
             header_frame,
             text="",
-            font=('Arial', 20, 'bold'),
+            font=('Arial', 22, 'bold'),
             bg='#C8D7E5',
             fg='#2d3e50',
             anchor='w'
         )
-        self.time_label.pack(side=tk.LEFT, padx=15, pady=5)
+        self.time_label.pack(side=tk.LEFT, padx=18, pady=8)
 
         # Weather display on the right
         self.weather_label = tk.Label(
             header_frame,
             text="",
-            font=('Arial', 18, 'bold'),
+            font=('Arial', 20, 'bold'),
             bg='#C8D7E5',
             fg='#2d3e50',
             anchor='e'
         )
-        self.weather_label.pack(side=tk.RIGHT, padx=15, pady=5)
+        self.weather_label.pack(side=tk.RIGHT, padx=18, pady=8)
 
         # Column headers
         column_header_frame = tk.Frame(self.root, bg='#2B4F7C')
         column_header_frame.pack(fill=tk.X, pady=(0, 2))
 
         headers = [
-            ("Linie\nLine", 0.15),
-            ("Richtung\nDirection", 0.65),
-            ("Abfahrt\nDeparture", 0.2)
+            ("Linie\nLine", 0.15, 'w', tk.LEFT),
+            ("Richtung\nDirection", 0.65, 'w', tk.LEFT),
+            ("Abfahrt\nDeparture", 0.2, 'e', tk.RIGHT)
         ]
 
-        for text, width in headers:
+        for text, width, anchor, justify in headers:
             label = tk.Label(
                 column_header_frame,
                 text=text,
                 font=('Arial', 10, 'bold'),
                 bg='#2B4F7C',
                 fg='#ffffff',
-                anchor='w',
-                justify=tk.LEFT
+                anchor=anchor,
+                justify=justify
             )
-            label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=4,
+            label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=5,
                       ipadx=int(width * 50))
 
         # Bus list frame (no scrollbar)

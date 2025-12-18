@@ -74,12 +74,17 @@ class BusDisplayApp:
 
         # API Configuration
         self.api_url = "http://transport.opendata.ch/v1/stationboard"
+        self.weather_api_url = "https://api.open-meteo.com/v1/forecast"
+
+        # Weather data
+        self.weather_data = None
 
         # Create UI
         self.create_widgets()
 
         # Start data fetching
         self.running = True
+        self.fetch_weather()
         self.fetch_data()
 
     def load_icons(self):
@@ -163,6 +168,84 @@ class BusDisplayApp:
         except Exception as e:
             print(f"Error loading config: {e}, using defaults")
 
+    def get_weather_emoji(self, weather_code):
+        """Convert WMO weather code to emoji"""
+        weather_emojis = {
+            0: '☀️',      # Clear sky
+            1: '🌤️',     # Mainly clear
+            2: '⛅',     # Partly cloudy
+            3: '☁️',      # Overcast
+            45: '🌫️',    # Fog
+            48: '🌫️',    # Depositing rime fog
+            51: '🌦️',    # Light drizzle
+            53: '🌦️',    # Moderate drizzle
+            55: '🌧️',    # Dense drizzle
+            61: '🌧️',    # Slight rain
+            63: '🌧️',    # Moderate rain
+            65: '🌧️',    # Heavy rain
+            71: '❄️',     # Slight snow
+            73: '❄️',     # Moderate snow
+            75: '❄️',     # Heavy snow
+            77: '❄️',     # Snow grains
+            80: '🌦️',    # Slight rain showers
+            81: '🌧️',    # Moderate rain showers
+            82: '🌧️',    # Violent rain showers
+            85: '❄️',     # Slight snow showers
+            86: '❄️',     # Heavy snow showers
+            95: '⛈️',     # Thunderstorm
+            96: '⛈️',     # Thunderstorm with slight hail
+            99: '⛈️',     # Thunderstorm with heavy hail
+        }
+        return weather_emojis.get(weather_code, '☁️')
+
+    def fetch_weather(self):
+        """Fetch weather data from Open-Meteo API"""
+        if not self.running:
+            return
+
+        def fetch_thread():
+            try:
+                # Zurich coordinates
+                params = {
+                    'latitude': 47.3769,
+                    'longitude': 8.5417,
+                    'current': 'temperature_2m,weather_code',
+                    'daily': 'temperature_2m_max,temperature_2m_min',
+                    'timezone': 'Europe/Zurich'
+                }
+
+                response = requests.get(self.weather_api_url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+
+                # Extract weather data
+                if 'daily' in data and data['daily']:
+                    min_temp = int(round(data['daily']['temperature_2m_min'][0]))
+                    max_temp = int(round(data['daily']['temperature_2m_max'][0]))
+                    weather_code = data['current']['weather_code']
+                    emoji = self.get_weather_emoji(weather_code)
+
+                    self.weather_data = f"{min_temp}-{max_temp}°{emoji}"
+
+                    # Update UI in main thread
+                    self.root.after(0, self.update_weather_display)
+
+            except Exception as e:
+                print(f"Error fetching weather: {e}")
+                self.weather_data = None
+
+        # Start fetch in background thread
+        thread = threading.Thread(target=fetch_thread, daemon=True)
+        thread.start()
+
+        # Schedule next weather refresh (every 30 minutes)
+        self.root.after(30 * 60 * 1000, self.fetch_weather)
+
+    def update_weather_display(self):
+        """Update the weather label in the header"""
+        if hasattr(self, 'weather_label') and self.weather_data:
+            self.weather_label.config(text=self.weather_data)
+
     def create_widgets(self):
         """Create the UI components"""
         # Header with time and ZVV logo
@@ -181,16 +264,16 @@ class BusDisplayApp:
         )
         self.time_label.pack(side=tk.LEFT, padx=15, pady=5)
 
-        # ZVV logo placeholder on the right
-        zvv_label = tk.Label(
+        # Weather display on the right
+        self.weather_label = tk.Label(
             header_frame,
-            text="ZVV",
+            text="",
             font=('Arial', 18, 'bold'),
             bg='#C8D7E5',
             fg='#2d3e50',
             anchor='e'
         )
-        zvv_label.pack(side=tk.RIGHT, padx=15, pady=5)
+        self.weather_label.pack(side=tk.RIGHT, padx=15, pady=5)
 
         # Column headers
         column_header_frame = tk.Frame(self.root, bg='#2B4F7C')

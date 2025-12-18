@@ -166,7 +166,7 @@ class BusDisplayApp:
     def create_widgets(self):
         """Create the UI components"""
         # Header with time and ZVV logo
-        header_frame = tk.Frame(self.root, bg='#C8D7E5', height=60)
+        header_frame = tk.Frame(self.root, bg='#C8D7E5', height=45)
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
 
@@ -174,23 +174,23 @@ class BusDisplayApp:
         self.time_label = tk.Label(
             header_frame,
             text="",
-            font=('Arial', 24, 'bold'),
+            font=('Arial', 20, 'bold'),
             bg='#C8D7E5',
             fg='#2d3e50',
             anchor='w'
         )
-        self.time_label.pack(side=tk.LEFT, padx=20, pady=10)
+        self.time_label.pack(side=tk.LEFT, padx=15, pady=5)
 
         # ZVV logo placeholder on the right
         zvv_label = tk.Label(
             header_frame,
             text="ZVV",
-            font=('Arial', 20, 'bold'),
+            font=('Arial', 18, 'bold'),
             bg='#C8D7E5',
             fg='#2d3e50',
             anchor='e'
         )
-        zvv_label.pack(side=tk.RIGHT, padx=20, pady=10)
+        zvv_label.pack(side=tk.RIGHT, padx=15, pady=5)
 
         # Column headers
         column_header_frame = tk.Frame(self.root, bg='#2B4F7C')
@@ -206,13 +206,13 @@ class BusDisplayApp:
             label = tk.Label(
                 column_header_frame,
                 text=text,
-                font=('Arial', 11, 'bold'),
+                font=('Arial', 10, 'bold'),
                 bg='#2B4F7C',
                 fg='#ffffff',
                 anchor='w',
                 justify=tk.LEFT
             )
-            label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=8,
+            label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=4,
                       ipadx=int(width * 50))
 
         # Bus list frame (no scrollbar)

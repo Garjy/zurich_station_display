@@ -1,15 +1,21 @@
-# Zurich Bus Display for Raspberry Pi
+# Zurich Public Transport Display for Raspberry Pi
 
-A fullscreen desktop application that displays real-time bus information for any selected bus/tram stop in Zurich, Switzerland.
+A fullscreen desktop application that displays real-time bus information for any selected bus/tram stop in Zurich, Switzerland, with live weather information.
+
+![Interface](image.png)
 
 ## Features
 
 - Real-time bus departure times from configured station
-- Automatically refreshes every 30 seconds
+- Live weather display showing today's temperature range and conditions
+- Automatically refreshes every 30 seconds (weather updates every 30 minutes)
 - Fullscreen display optimized for 3.5-inch touchscreen
-- Shows departure time, bus line number, destination, and platform
-- Displays countdown in minutes until departure
-- Dark theme for easy visibility
+- Shows departure time, bus line number, destination with official SBB transport icons
+- Displays countdown in minutes until departure (shows "Now" when departing)
+- Line-specific color coding (bus 72, 76, etc.)
+- Alternating row colors for better readability
+- Departed buses automatically removed from display within 10 seconds
+- Official transport icons from SBB (bus, tram, train)
 
 ## Requirements
 
@@ -22,18 +28,35 @@ A fullscreen desktop application that displays real-time bus information for any
 
 ### 1. Install Dependencies
 
+**On Raspberry Pi (using apt):**
 ```bash
-cd zurich_bus_display
+cd zurich_station_display
+sudo apt-get update
+sudo apt-get install python3-requests python3-pil python3-pil.imagetk python3-tk python3-cairosvg
+```
+
+**On macOS/other systems (using pip):**
+```bash
+cd zurich_station_display
 pip3 install -r requirements.txt
 ```
 
-### 2. Make the Script Executable
+### 2. Verify Transport Icons
+
+The application includes official SBB transport icons in the `icons/` directory:
+- `bus-profile-small.svg`
+- `tram-profile-small.svg`
+- `train-profile-small.svg`
+
+These are downloaded from https://icons.app.sbb.ch/
+
+### 3. Make the Script Executable
 
 ```bash
 chmod +x bus_display.py
 ```
 
-### 3. Test the Application
+### 4. Test the Application
 
 ```bash
 python3 bus_display.py
@@ -85,7 +108,7 @@ Configuration options:
 ### Manual Start
 
 ```bash
-python3 /path/to/zurich_bus_display/bus_display.py
+python3 /path/to/zurich_station_display/bus_display.py
 ```
 
 ### Keyboard Shortcuts
@@ -236,10 +259,21 @@ This could mean:
 
 ## API Information
 
-This application uses the free Transport API for Switzerland:
+This application uses two free APIs:
+
+### Transport API
 - **API**: http://transport.opendata.ch/
 - **Documentation**: https://transport.opendata.ch/docs.html
 - **Data**: Real-time public transport data for Switzerland
+- **No API key required**
+
+### Weather API
+- **API**: https://open-meteo.com/
+- **Documentation**: https://open-meteo.com/en/docs
+- **Data**: Weather forecast and current conditions for Zurich
+- **Features**: Daily min/max temperature, weather conditions with emoji icons
+- **Updates**: Every 30 minutes
+- **No API key required**
 
 ## License
 

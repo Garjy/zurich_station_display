@@ -5,7 +5,7 @@ Get your Zurich bus display up and running in 5 minutes!
 ## Step 1: Install Dependencies
 
 ```bash
-cd zurich_bus_display
+cd zurich_station_display
 pip3 install -r requirements.txt
 ```
 

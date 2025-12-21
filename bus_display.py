@@ -79,6 +79,10 @@ class BusDisplayApp:
         # Weather data
         self.weather_data = None
 
+        # Track when entries start showing "Now" for auto-removal
+        # Dictionary: {unique_key: timestamp_when_now_started}
+        self.now_timers = {}
+
         # Create UI
         self.create_widgets()
 
@@ -375,6 +379,13 @@ class BusDisplayApp:
         time_date_str = now.strftime("%H:%M     %d.%m.%Y")
         self.time_label.config(text=time_date_str)
 
+        # Clean up old entries from now_timers (older than 5 minutes)
+        current_time = time.time()
+        expired_keys = [key for key, timestamp in self.now_timers.items()
+                       if current_time - timestamp > 300]
+        for key in expired_keys:
+            del self.now_timers[key]
+
         # Clear existing bus entries
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
@@ -431,9 +442,29 @@ class BusDisplayApp:
             if minutes < 0:
                 return
 
+            # Create unique identifier for this bus entry
+            line = bus.get('number', 'N/A')
+            destination = bus['to']
+            entry_key = f"{line}_{destination}_{departure_time}"
+
             if minutes == 0:
                 time_display = "Now"
+
+                # Track when this entry started showing "Now"
+                current_time = time.time()
+                if entry_key not in self.now_timers:
+                    # First time seeing this as "Now", record the timestamp
+                    self.now_timers[entry_key] = current_time
+                else:
+                    # Check if 20 seconds have passed since showing "Now"
+                    elapsed = current_time - self.now_timers[entry_key]
+                    if elapsed >= 20:
+                        # Remove from display after 20 seconds
+                        return
             else:
+                # Not showing "Now" anymore, remove from tracking if present
+                if entry_key in self.now_timers:
+                    del self.now_timers[entry_key]
                 time_display = f"in {minutes}'"
         else:
             time_display = "N/A"

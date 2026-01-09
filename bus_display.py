@@ -82,8 +82,13 @@ class BusDisplayApp:
         # Create UI
         self.create_widgets()
 
+        # Bind touch/click event for manual refresh to all widgets
+        self.bind_refresh_to_widget(self.root)
+
         # Start data fetching
         self.running = True
+        self.is_refreshing = False  # Track refresh state to prevent concurrent refreshes
+        self.refresh_feedback_window = None  # Reference to feedback overlay
         self.fetch_weather()
         self.fetch_data()
 
@@ -246,6 +251,137 @@ class BusDisplayApp:
         if hasattr(self, 'weather_label') and self.weather_data:
             self.weather_label.config(text=self.weather_data)
 
+    def show_refresh_feedback(self, show=True):
+        """Show or hide refresh feedback overlay"""
+        if show:
+            # Create semi-transparent overlay with message
+            if self.refresh_feedback_window is None:
+                # Create toplevel window for overlay
+                self.refresh_feedback_window = tk.Toplevel(self.root)
+                self.refresh_feedback_window.attributes('-topmost', True)
+                self.refresh_feedback_window.overrideredirect(True)  # Remove window decorations
+
+                # Make it transparent/semi-transparent (platform dependent)
+                try:
+                    self.refresh_feedback_window.attributes('-alpha', 0.85)
+                except tk.TclError:
+                    pass  # Alpha transparency not supported on this platform
+
+                # Center the window
+                window_width = 200
+                window_height = 80
+                screen_width = self.root.winfo_width()
+                screen_height = self.root.winfo_height()
+                x = (screen_width - window_width) // 2
+                y = (screen_height - window_height) // 2
+
+                self.refresh_feedback_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+                # Create message frame with rounded appearance
+                message_frame = tk.Frame(
+                    self.refresh_feedback_window,
+                    bg='#1E3A5F',
+                    highlightbackground='#ffffff',
+                    highlightthickness=2
+                )
+                message_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+                # Refreshing message
+                message_label = tk.Label(
+                    message_frame,
+                    text="Aktualisieren...\nRefreshing...",
+                    font=('Arial', 12, 'bold'),
+                    bg='#1E3A5F',
+                    fg='#ffffff',
+                    justify=tk.CENTER
+                )
+                message_label.pack(expand=True)
+
+            # Show the window
+            if self.refresh_feedback_window:
+                self.refresh_feedback_window.deiconify()
+        else:
+            # Hide the window
+            if self.refresh_feedback_window:
+                self.refresh_feedback_window.withdraw()
+
+    def bind_refresh_to_widget(self, widget):
+        """Recursively bind click event to widget and all its children"""
+        widget.bind('<Button-1>', self.on_touch_refresh)
+        for child in widget.winfo_children():
+            self.bind_refresh_to_widget(child)
+
+    def on_touch_refresh(self, event):
+        """Handle touch/click event to trigger manual refresh"""
+        # Ignore if already refreshing
+        if self.is_refreshing:
+            return
+
+        # Ignore if app is shutting down
+        if not self.running:
+            return
+
+        # Set refresh flag
+        self.is_refreshing = True
+
+        # Show visual feedback
+        self.show_refresh_feedback(True)
+
+        # Trigger immediate data fetch
+        self.fetch_data_manual()
+
+    def fetch_data_manual(self):
+        """Fetch bus data manually (triggered by user touch) - does not reschedule auto-refresh"""
+        def fetch_thread():
+            try:
+                params = {
+                    'station': self.station_name,
+                    'limit': self.max_buses
+                }
+
+                # Add transport type filter if specified
+                if self.transport_type:
+                    if ',' in self.transport_type:
+                        for t_type in self.transport_type.split(','):
+                            params['transportations[]'] = t_type.strip()
+                    else:
+                        params['transportations[]'] = self.transport_type
+
+                response = requests.get(self.api_url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+
+                # Update UI in main thread
+                self.root.after(0, self.update_display_manual, data)
+
+            except Exception as e:
+                error_msg = f"Error: {str(e)}"
+                self.root.after(0, self.show_error, error_msg)
+                # Hide feedback after minimum delay even on error
+                self.root.after(500, lambda: self.complete_manual_refresh())
+
+        # Start fetch in background thread
+        thread = threading.Thread(target=fetch_thread, daemon=True)
+        thread.start()
+
+        # Note: We do NOT reschedule auto-refresh here - that continues independently
+
+    def update_display_manual(self, data):
+        """Update display after manual refresh and hide feedback"""
+        # Reuse existing update logic
+        self.update_display(data)
+
+        # Complete manual refresh (hide feedback, reset flag)
+        self.complete_manual_refresh()
+
+    def complete_manual_refresh(self):
+        """Clean up after manual refresh completes"""
+        # Hide feedback overlay
+        self.show_refresh_feedback(False)
+
+        # Reset refresh flag to allow next manual refresh
+        self.is_refreshing = False
+
     def create_widgets(self):
         """Create the UI components"""
         # Header with time and weather
@@ -398,6 +534,9 @@ class BusDisplayApp:
                 fg='#ffffff'
             )
             help_label.pack(pady=10)
+
+            # Bind click event to newly created widgets
+            self.bind_refresh_to_widget(self.scrollable_frame)
             return
 
         # Check if we have data
@@ -410,11 +549,17 @@ class BusDisplayApp:
                 fg='#ffffff'
             )
             no_data_label.pack(pady=20)
+
+            # Bind click event to newly created widgets
+            self.bind_refresh_to_widget(self.scrollable_frame)
             return
 
         # Display bus entries
         for i, bus in enumerate(data['stationboard']):
             self.create_bus_entry(bus, i)
+
+        # Bind click event to newly created bus entry widgets
+        self.bind_refresh_to_widget(self.scrollable_frame)
 
     def create_bus_entry(self, bus, index):
         """Create a single bus entry row"""
@@ -545,9 +690,15 @@ class BusDisplayApp:
         )
         error_label.pack(pady=20)
 
+        # Bind click event to newly created error widget
+        self.bind_refresh_to_widget(self.scrollable_frame)
+
     def on_closing(self):
         """Clean up when closing the application"""
         self.running = False
+        # Clean up feedback window if it exists
+        if self.refresh_feedback_window:
+            self.refresh_feedback_window.destroy()
         self.root.destroy()
 
 
